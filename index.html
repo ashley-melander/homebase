@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f4f5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="HomeBase">
+<link rel="apple-touch-icon" href="icon.png">
+<title>HomeBase — your day, all in one place</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#1e2430; --muted:#8b93a1; --line:#e6e8ec;
+    --work:#3b82f6; --home:#22c55e; --health:#ec4899; --errands:#f59e0b; --projects:#8b5cf6;
+    --danger:#ef4444; --radius:12px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); font-size:15px;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; font-size:14px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:2px solid #c7d7fe; border-color:#93b4f8;}
+
+  header{background:var(--card); border-bottom:1px solid var(--line); padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; position:sticky; top:0; z-index:50;}
+  header h1{font-size:19px; letter-spacing:-.3px;}
+  header h1 span{color:var(--muted); font-weight:400; font-size:13px; margin-left:8px;}
+  nav{display:flex; gap:4px; flex-wrap:wrap;}
+  nav button{border:none; background:transparent; padding:8px 14px; border-radius:8px; font-size:14px; color:var(--muted); font-weight:500;}
+  nav button.active{background:#eef1f6; color:var(--ink);}
+  .spacer{flex:1;}
+  .syncbtn{border:1px solid var(--line); background:#fff; border-radius:20px; padding:6px 12px; font-size:13px; color:var(--muted); display:flex; gap:6px; align-items:center;}
+  .syncbtn:hover{background:#f0f2f5;}
+  #syncDot{color:#9aa1ad;}
+
+  main{max-width:1100px; margin:0 auto; padding:20px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px;}
+  .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .muted{color:var(--muted); font-size:13px;}
+  h2{font-size:17px; margin-bottom:4px;}
+  .navbtns button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px; font-size:14px;}
+  .navbtns button:hover{background:#f0f2f5;}
+
+  /* alerts */
+  .alert{background:#fef2f2; border:1px solid #fecaca; border-radius:var(--radius); padding:12px 16px; margin-bottom:16px;}
+  .alert h3{font-size:14px; color:#b91c1c; margin-bottom:6px;}
+  .progress{font-size:13px; color:var(--muted); margin-top:2px;}
+
+  /* items */
+  .item{display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:10px; border-left:4px solid var(--muted); background:#fafbfc; margin-bottom:6px;}
+  .item .cb{width:19px; height:19px; flex:none; accent-color:#475569; cursor:pointer;}
+  .item .title{flex:1; min-width:0;}
+  .item .title .t{font-weight:500;}
+  .item .meta{font-size:12px; color:var(--muted);}
+  .item.done{opacity:.55;}
+  .item.done .t{text-decoration:line-through; color:var(--muted); font-weight:400;}
+  .item .edit{border:none; background:transparent; color:var(--muted); font-size:15px; padding:4px;}
+  .item .edit:hover{color:var(--ink);}
+  .badge{font-size:11px; background:#eef1f6; border-radius:20px; padding:2px 8px; color:var(--muted); white-space:nowrap;}
+
+  .quickadd{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .quickadd input[type=text]{flex:1; min-width:160px;}
+  .btn{background:var(--ink); color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:14px; font-weight:500;}
+  .btn:hover{opacity:.88;}
+  .btn.ghost{background:#fff; color:var(--ink); border:1px solid var(--line);}
+  .btn.danger{background:#fff; color:var(--danger); border:1px solid #fecaca;}
+
+  /* week */
+  .weekgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:8px;}
+  .daycol{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:8px; min-height:130px;}
+  .daycol h4{font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:center;}
+  .daycol.today{border-color:#93b4f8; box-shadow:0 0 0 2px #dbe6fd;}
+  .mini{font-size:12px; padding:4px 6px; border-radius:6px; margin-bottom:4px; border-left:3px solid; background:#fafbfc; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mini.done{text-decoration:line-through; opacity:.5;}
+
+  /* month */
+  .monthgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .mhead{font-size:12px; color:var(--muted); text-align:center; font-weight:600; padding:4px 0;}
+  .mcell{background:var(--card); border:1px solid var(--line); border-radius:8px; min-height:86px; padding:5px; font-size:12px; cursor:pointer;}
+  .mcell:hover{border-color:#93b4f8;}
+  .mcell.blank{background:transparent; border:none; cursor:default;}
+  .mcell.today .dnum{background:var(--ink); color:#fff;}
+  .dnum{display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center; border-radius:50%; font-weight:600; margin-bottom:3px;}
+  .dot{display:block; border-left:3px solid; padding-left:4px; margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#444;}
+  .more{color:var(--muted); font-size:11px;}
+
+  /* chips */
+  .chip{display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 12px; font-size:13px; color:var(--ink); cursor:pointer;}
+  .chip.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0;}
+
+  /* lists view */
+  .listslayout{display:grid; grid-template-columns:220px 1fr; gap:16px;}
+  .listnames button{display:flex; width:100%; justify-content:space-between; border:none; background:transparent; padding:9px 12px; border-radius:8px; font-size:14px; color:var(--ink); text-align:left;}
+  .listnames button.active{background:#eef1f6; font-weight:600;}
+  .listnames .count{color:var(--muted); font-size:12px;}
+  .clitem{display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--line);}
+  .clitem:last-child{border-bottom:none;}
+  .clitem span{flex:1;}
+  .clitem.done span{text-decoration:line-through; color:var(--muted);}
+  .clitem .del{border:none; background:none; color:var(--muted); font-size:14px;}
+  .clitem .del:hover{color:var(--danger);}
+
+  /* notes */
+  .notegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;}
+  .note{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:8px;}
+  .note h4{font-size:15px;}
+  .note p{font-size:13.5px; white-space:pre-wrap; color:#3c4352; flex:1;}
+  .tag{font-size:11.5px; background:#eef1f6; color:#5b6474; border-radius:20px; padding:2px 9px; cursor:pointer;}
+  .noteactions{display:flex; gap:8px;}
+  .noteactions button{border:none; background:none; font-size:12.5px; color:var(--muted);}
+  .noteactions button:hover{color:var(--ink);}
+
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(20,24,32,.45); display:none; align-items:center; justify-content:center; z-index:100; padding:16px;}
+  .overlay.open{display:flex;}
+  .modal{background:#fff; border-radius:14px; padding:20px; width:100%; max-width:440px; max-height:90vh; overflow:auto;}
+  .modal h3{margin-bottom:14px; font-size:16px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:4px;}
+  .field input,.field select,.field textarea{width:100%;}
+  .modal .actions{display:flex; gap:8px; justify-content:flex-end; margin-top:16px;}
+
+  footer{max-width:1100px; margin:0 auto; padding:0 20px 30px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  footer .muted{flex:1;}
+
+  @media (max-width:760px){
+    .weekgrid{grid-template-columns:1fr;}
+    .daycol{min-height:auto;}
+    .listslayout{grid-template-columns:1fr;}
+    .mcell{min-height:56px;}
+    .dot{display:none;}
+    .mdots{display:flex; gap:2px; flex-wrap:wrap;}
+    header{padding:10px 12px;}
+    main{padding:12px;}
+  }
+  .mdots i{width:7px; height:7px; border-radius:50%; display:inline-block;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 HomeBase<span id="hdrDate"></span></h1>
+  <nav id="tabs">
+    <button data-view="day" class="active">Today</button>
+    <button data-view="week">Week</button>
+    <button data-view="month">Month</button>
+    <button data-view="lists">Lists</button>
+    <button data-view="notes">Notes</button>
+  </nav>
+  <div class="spacer"></div>
+  <button class="syncbtn" onclick="openSettings()" title="Sync settings">
+    <span id="syncDot">●</span> <span id="syncLabel">Set up sync</span>
+  </button>
+</header>
+
+<main>
+  <div id="view-day"></div>
+  <div id="view-week" style="display:none"></div>
+  <div id="view-month" style="display:none"></div>
+  <div id="view-lists" style="display:none"></div>
+  <div id="view-notes" style="display:none"></div>
+</main>
+
+<footer>
+  <span class="muted">Your data is saved automatically in this browser. Back it up anytime →</span>
+  <button class="btn ghost" onclick="exportData()">Export data</button>
+  <button class="btn ghost" onclick="document.getElementById('importFile').click()">Import data</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+</footer>
+
+<!-- item editor modal -->
+<div class="overlay" id="itemModal">
+  <div class="modal">
+    <h3 id="modalTitle">New item</h3>
+    <div class="field"><label>What is it?</label><input type="text" id="mTitle" placeholder="e.g. Water the plants"></div>
+    <div class="field"><label>Category</label><select id="mCat"></select></div>
+    <div class="field"><label>Date</label><input type="date" id="mDate"></div>
+    <div class="field"><label>Time (optional)</label><input type="time" id="mTime"></div>
+    <div class="field"><label>Repeats</label>
+      <select id="mRecur">
+        <option value="none">Doesn't repeat</option>
+        <option value="daily">Every day</option>
+        <option value="weekdays">Every weekday (Mon–Fri)</option>
+        <option value="weekly">Weekly (same day of week)</option>
+        <option value="biweekly">Every 2 weeks</option>
+        <option value="monthly">Monthly (same day of month)</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="mDelete" style="margin-right:auto">Delete</button>
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- sync settings modal -->
+<div class="overlay" id="settingsModal">
+  <div class="modal">
+    <h3>Sync settings</h3>
+    <p class="muted" style="margin-bottom:12px">Connects HomeBase to your private GitHub storage so every device sees the same data. You need this filled in once per device.</p>
+    <div class="field"><label>GitHub username</label><input type="text" id="sUser" autocapitalize="none" placeholder="your-username"></div>
+    <div class="field"><label>Data repo name</label><input type="text" id="sRepo" autocapitalize="none" value="homebase-data"></div>
+    <div class="field"><label>Access token</label><input type="password" id="sToken" placeholder="github_pat_…"></div>
+    <div class="muted" id="sStatus" style="margin-bottom:4px"></div>
+    <div class="actions">
+      <button class="btn danger" id="sDisconnect" onclick="disconnectSync()" style="margin-right:auto">Turn off sync</button>
+      <button class="btn ghost" onclick="closeSettings()">Cancel</button>
+      <button class="btn" onclick="connectSync()">Save &amp; connect</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   HomeBase — a single-file personal dashboard.
+   Everything is stored in your browser's localStorage under
+   the key "homebase-v1". Use Export/Import to back up or move.
+   ============================================================ */
+
+// ---------- categories ----------
+const CATS = {
+  work:     {name:"Work",              icon:"💼", color:"var(--work)",     hex:"#3b82f6"},
+  home:     {name:"House / Home",      icon:"🏠", color:"var(--home)",     hex:"#22c55e"},
+  health:   {name:"Personal / Health", icon:"🌸", color:"var(--health)",   hex:"#ec4899"},
+  errands:  {name:"Errands / Shopping",icon:"🛒", color:"var(--errands)",  hex:"#f59e0b"},
+  projects: {name:"Personal Projects", icon:"🎨", color:"var(--projects)", hex:"#8b5cf6"},
+};
+
+// ---------- date helpers (all local-time, no UTC surprises) ----------
+const fmt = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const todayStr = () => fmt(new Date());
+const addDays = (s,n) => { const d = parse(s); d.setDate(d.getDate()+n); return fmt(d); };
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function nice(s){ const d = parse(s); return DOW[d.getDay()]+", "+MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate(); }
+
+// Does a (possibly recurring) item land on this date?
+function occursOn(item, ds){
+  if (item.recur === "none" || !item.recur) return item.date === ds;
+  if (ds < item.date) return false;
+  const d = parse(ds), b = parse(item.date);
+  const diff = Math.round((d - b) / 864e5);
+  switch(item.recur){
+    case "daily":    return true;
+    case "weekdays": return d.getDay() >= 1 && d.getDay() <= 5;
+    case "weekly":   return d.getDay() === b.getDay();
+    case "biweekly": return d.getDay() === b.getDay() && diff % 14 === 0;
+    case "monthly":  return d.getDate() === b.getDate();
+  }
+  return false;
+}
+const isDone = (item, ds) => !!(item.completions && item.completions[ds]);
+
+// ---------- state ----------
+const KEY = "homebase-v1";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+let state = load();
+let currentView = "day";
+let dayCursor = todayStr();      // date shown in Today view
+let weekCursor = todayStr();     // any date inside the shown week
+let monthCursor = todayStr();    // any date inside the shown month
+let activeListId = null;
+let activeTag = null;
+let editingItemId = null;
+let editingNoteId = null;
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  }catch(e){ console.warn("Could not load saved data", e); }
+  return seed();
+}
+function save(){
+  state.updatedAt = new Date().toISOString();   // powers "newest copy wins" across devices
+  localStorage.setItem(KEY, JSON.stringify(state));
+  if (syncCfg){ clearTimeout(pushTimer); pushTimer = setTimeout(syncPush, 1500); }
+}
+
+// First-run sample content so the app isn't empty.
+function seed(){
+  const t = todayStr();
+  return {
+    items: [
+      {id:uid(), title:"Sample: team check-in", cat:"work", date:t, time:"09:30", recur:"weekdays", completions:{}},
+      {id:uid(), title:"Sample: take out trash", cat:"home", date:t, time:"", recur:"weekly", completions:{}},
+      {id:uid(), title:"Sample: 30-min walk", cat:"health", date:t, time:"", recur:"daily", completions:{}},
+      {id:uid(), title:"Sample: grocery run", cat:"errands", date:addDays(t,1), time:"", recur:"none", completions:{}},
+      {id:uid(), title:"Sample: work on garden plan", cat:"projects", date:addDays(t,2), time:"", recur:"none", completions:{}},
+    ],
+    lists: [
+      {id:uid(), name:"Groceries", items:[
+        {id:uid(), text:"Milk", done:false},
+        {id:uid(), text:"Eggs", done:false},
+        {id:uid(), text:"Coffee", done:true},
+      ]},
+      {id:uid(), name:"Someday / Maybe", items:[
+        {id:uid(), text:"Organize garage shelves", done:false},
+      ]},
+    ],
+    notes: [
+      {id:uid(), title:"Welcome to HomeBase 👋",
+       body:"Quick tour:\n\n• TODAY shows everything due on one day. Check things off — they stay put, just grayed out.\n• WEEK and MONTH zoom out. Click any day in Month to jump to it.\n• LISTS is for groceries, shopping, someday-tasks.\n• NOTES is this tab. Add tags to a note and click a tag to see everything with that tag together.\n\nThe pencil ✎ on any item lets you edit or delete it. These sample entries are safe to delete!",
+       tags:["howto"], updated:t},
+    ],
+  };
+}
+
+// ---------- view switching ----------
+document.getElementById("tabs").addEventListener("click", e => {
+  const btn = e.target.closest("button"); if(!btn) return;
+  currentView = btn.dataset.view;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b === btn));
+  render();
+});
+
+function render(){
+  ["day","week","month","lists","notes"].forEach(v => {
+    document.getElementById("view-"+v).style.display = (v === currentView) ? "" : "none";
+  });
+  document.getElementById("hdrDate").textContent = nice(todayStr());
+  ({day:renderDay, week:renderWeek, month:renderMonth, lists:renderLists, notes:renderNotes})[currentView]();
+}
+
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+// ---------- TODAY (day view) ----------
+function itemsOn(ds){
+  return state.items.filter(i => occursOn(i, ds))
+    .sort((a,b) => (a.time||"99") < (b.time||"99") ? -1 : 1);
+}
+function overdueItems(){
+  const t = todayStr();
+  return state.items.filter(i => (i.recur==="none"||!i.recur) && i.date < t && !isDone(i, i.date))
+    .sort((a,b) => a.date < b.date ? -1 : 1);
+}
+
+function itemRow(item, ds){
+  const c = CATS[item.cat] || CATS.work;
+  const done = isDone(item, ds);
+  const recurBadge = (item.recur && item.recur!=="none") ? '<span class="badge">↻ repeats</span>' : "";
+  const meta = [item.time, c.icon+" "+c.name].filter(Boolean).join(" · ");
+  return `<div class="item ${done?"done":""}" style="border-left-color:${c.hex}">
+    <input type="checkbox" class="cb" ${done?"checked":""} onchange="toggleItem('${item.id}','${ds}')">
+    <div class="title"><div class="t">${esc(item.title)}</div><div class="meta">${esc(meta)}</div></div>
+    ${recurBadge}
+    <button class="edit" title="Edit" onclick="openModal('${item.id}')">✎</button>
+  </div>`;
+}
+
+function renderDay(){
+  const ds = dayCursor;
+  const items = itemsOn(ds);
+  const doneCount = items.filter(i => isDone(i, ds)).length;
+  const od = overdueItems();
+  const isToday = ds === todayStr();
+
+  let html = "";
+  if (isToday && od.length){
+    html += `<div class="alert"><h3>⚠️ ${od.length} overdue item${od.length>1?"s":""}</h3>` +
+      od.map(i => itemRow(i, i.date).replace('class="item ','class="item ') ).join("") +
+      `<div class="muted" style="margin-top:6px">Check one off to clear it, or hit ✎ to move it to a new date.</div></div>`;
+  }
+
+  html += `<div class="card">
+    <div class="row">
+      <div style="flex:1"><h2>${isToday ? "Today" : nice(ds)}</h2>
+        <div class="progress">${items.length ? doneCount+" of "+items.length+" done" : "Nothing scheduled — add something below or enjoy the quiet."}</div>
+      </div>
+      <div class="row navbtns">
+        <button onclick="moveDay(-1)">‹</button>
+        <button onclick="dayCursor=todayStr();render()">Today</button>
+        <button onclick="moveDay(1)">›</button>
+      </div>
+    </div>
+    <div style="margin-top:12px">${items.map(i => itemRow(i, ds)).join("")}</div>
+    <div class="quickadd">
+      <input type="text" id="qaTitle" placeholder="Add something for ${isToday?"today":nice(ds)}…" onkeydown="if(event.key==='Enter')quickAdd()">
+      <select id="qaCat">${Object.entries(CATS).map(([k,c])=>`<option value="${k}">${c.icon} ${c.name}</option>`).join("")}</select>
+      <button class="btn" onclick="quickAdd()">Add</button>
+      <button class="btn ghost" onclick="openModal(null)">More options…</button>
+    </div>
+  </div>`;
+  document.getElementById("view-day").innerHTML = html;
+}
+function moveDay(n){ dayCursor = addDays(dayCursor, n); render(); }
+function toggleItem(id, ds){
+  const item = state.items.find(i => i.id === id); if(!item) return;
+  item.completions = item.completions || {};
+  item.completions[ds] = !item.completions[ds];
+  save(); render();
+}
+function quickAdd(){
+  const t = document.getElementById("qaTitle").value.trim(); if(!t) return;
+  state.items.push({id:uid(), title:t, cat:document.getElementById("qaCat").value,
+    date:dayCursor, time:"", recur:"none", completions:{}});
+  save(); render();
+}
+
+// ---------- WEEK ----------
+function renderWeek(){
+  const anchor = parse(weekCursor);
+  const start = new Date(anchor); start.setDate(anchor.getDate() - anchor.getDay()); // back to Sunday
+  const days = Array.from({length:7}, (_,i) => { const d = new Date(start); d.setDate(start.getDate()+i); return fmt(d); });
+  const label = nice(days[0]) + " – " + nice(days[6]);
+
+  let html = `<div class="card"><div class="row">
+      <div style="flex:1"><h2>Week</h2><div class="muted">${label}</div></div>
+      <div class="row navbtns">
+        <button onclick="moveWeek(-7)">‹</button>
+        <button onclick="weekCursor=todayStr();render()">This week</button>
+        <button onclick="moveWeek(7)">›</button>
+      </div></div></div>
+    <div class="weekgrid">` +
+    days.map(ds => {
+      const items = itemsOn(ds);
+      return `<div class="daycol ${ds===todayStr()?"today":""}">
+        <h4>${nice(ds)}</h4>` +
+        items.map(i => {
+          const c = CATS[i.cat]||CATS.work;
+          return `<div class="mini ${isDone(i,ds)?"done":""}" style="border-left-color:${c.hex}"
+            title="${esc(i.title)} — click to check off" onclick="toggleItem('${i.id}','${ds}')">${c.icon} ${esc(i.title)}</div>`;
+        }).join("") +
+        `</div>`;
+    }).join("") + `</div>`;
+  document.getElementById("view-week").innerHTML = html;
+}
+function moveWeek(n){ weekCursor = addDays(weekCursor, n); render(); }
+
+// ---------- MONTH ----------
+function renderMonth(){
+  const anchor = parse(monthCursor);
+  const y = anchor.getFullYear(), m = anchor.getMonth();
+  const first = new Date(y, m, 1);
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+
+  let cells = DOW.map(d => `<div class="mhead">${d}</div>`).join("");
+  for (let i=0; i<first.getDay(); i++) cells += `<div class="mcell blank"></div>`;
+  for (let day=1; day<=daysInMonth; day++){
+    const ds = fmt(new Date(y, m, day));
+    const items = itemsOn(ds);
+    const shown = items.slice(0,3);
+    cells += `<div class="mcell ${ds===todayStr()?"today":""}" onclick="jumpToDay('${ds}')">
+      <span class="dnum">${day}</span>
+      ${shown.map(i => { const c=CATS[i.cat]||CATS.work;
+        return `<span class="dot" style="border-left-color:${c.hex}">${esc(i.title)}</span>`; }).join("")}
+      <span class="mdots">${shown.map(i => `<i style="background:${(CATS[i.cat]||CATS.work).hex}"></i>`).join("")}</span>
+      ${items.length>3 ? `<span class="more">+${items.length-3} more</span>` : ""}
+    </div>`;
+  }
+  const html = `<div class="card"><div class="row">
+      <div style="flex:1"><h2>${MONTHS[m]} ${y}</h2><div class="muted">Click a day to open it.</div></div>
+      <div class="row navbtns">
+        <button onclick="moveMonth(-1)">‹</button>
+        <button onclick="monthCursor=todayStr();render()">This month</button>
+        <button onclick="moveMonth(1)">›</button>
+      </div></div></div>
+    <div class="monthgrid">${cells}</div>`;
+  document.getElementById("view-month").innerHTML = html;
+}
+function moveMonth(n){
+  const d = parse(monthCursor); d.setDate(1); d.setMonth(d.getMonth()+n); monthCursor = fmt(d); render();
+}
+function jumpToDay(ds){
+  dayCursor = ds; currentView = "day";
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.view==="day"));
+  render();
+}
+
+// ---------- LISTS ----------
+function renderLists(){
+  if (!state.lists.length) activeListId = null;
+  else if (!state.lists.find(l => l.id === activeListId)) activeListId = state.lists[0].id;
+  const active = state.lists.find(l => l.id === activeListId);
+
+  const namesHtml = state.lists.map(l => {
+    const open = l.items.filter(i => !i.done).length;
+    return `<button class="${l.id===activeListId?"active":""}" onclick="activeListId='${l.id}';render()">
+      <span>${esc(l.name)}</span><span class="count">${open}</span></button>`;
+  }).join("");
+
+  let activeHtml = `<div class="card"><div class="muted">No lists yet — create one on the left.</div></div>`;
+  if (active){
+    activeHtml = `<div class="card">
+      <div class="row"><h2 style="flex:1">${esc(active.name)}</h2>
+        <button class="btn ghost" onclick="clearChecked()">Clear checked</button>
+        <button class="btn danger" onclick="deleteList()">Delete list</button></div>
+      <div style="margin-top:10px">` +
+      active.items.map(it => `<div class="clitem ${it.done?"done":""}">
+          <input type="checkbox" class="cb" ${it.done?"checked":""} onchange="toggleListItem('${it.id}')">
+          <span>${esc(it.text)}</span>
+          <button class="del" onclick="deleteListItem('${it.id}')">✕</button></div>`).join("") +
+      `</div>
+      <div class="quickadd">
+        <input type="text" id="liText" placeholder="Add an item…" onkeydown="if(event.key==='Enter')addListItem()">
+        <button class="btn" onclick="addListItem()">Add</button>
+      </div></div>`;
+  }
+
+  document.getElementById("view-lists").innerHTML = `<div class="listslayout">
+    <div class="card">
+      <h2 style="margin-bottom:8px">Lists</h2>
+      <div class="listnames">${namesHtml}</div>
+      <div class="quickadd"><input type="text" id="newListName" placeholder="New list name…" onkeydown="if(event.key==='Enter')addList()">
+      <button class="btn" onclick="addList()">＋</button></div>
+    </div>
+    <div>${activeHtml}</div></div>`;
+}
+function addList(){
+  const n = document.getElementById("newListName").value.trim(); if(!n) return;
+  const l = {id:uid(), name:n, items:[]}; state.lists.push(l); activeListId = l.id; save(); render();
+}
+function deleteList(){
+  if (!confirm("Delete this whole list?")) return;
+  state.lists = state.lists.filter(l => l.id !== activeListId); save(); render();
+}
+function addListItem(){
+  const t = document.getElementById("liText").value.trim(); if(!t) return;
+  state.lists.find(l => l.id===activeListId).items.push({id:uid(), text:t, done:false}); save(); render();
+  const el = document.getElementById("liText"); if (el){ el.focus(); }
+}
+function toggleListItem(id){
+  const it = state.lists.find(l => l.id===activeListId).items.find(i => i.id===id);
+  it.done = !it.done; save(); render();
+}
+function deleteListItem(id){
+  const l = state.lists.find(l => l.id===activeListId);
+  l.items = l.items.filter(i => i.id !== id); save(); render();
+}
+function clearChecked(){
+  const l = state.lists.find(l => l.id===activeListId);
+  l.items = l.items.filter(i => !i.done); save(); render();
+}
+
+// ---------- NOTES ----------
+function allTags(){
+  const set = new Set(); state.notes.forEach(n => n.tags.forEach(t => set.add(t)));
+  return [...set].sort();
+}
+function renderNotes(){
+  const tags = allTags();
+  const shown = activeTag ? state.notes.filter(n => n.tags.includes(activeTag)) : state.notes;
+  const sorted = [...shown].sort((a,b) => a.updated < b.updated ? 1 : -1);
+
+  document.getElementById("view-notes").innerHTML = `
+    <div class="card">
+      <h2>${editingNoteId ? "Edit note" : "New note"}</h2>
+      <div class="field" style="margin-top:10px"><input type="text" id="nTitle" placeholder="Title"></div>
+      <div class="field"><textarea id="nBody" rows="4" placeholder="Write anything… you can also type #tags right in the text."></textarea></div>
+      <div class="row">
+        <input type="text" id="nTags" placeholder="tags, separated, by, commas" style="flex:1">
+        ${editingNoteId ? '<button class="btn ghost" onclick="cancelNoteEdit()">Cancel</button>' : ""}
+        <button class="btn" onclick="saveNote()">${editingNoteId ? "Update" : "Save note"}</button>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip ${!activeTag?"active":""}" onclick="activeTag=null;render()">All (${state.notes.length})</span>
+      ${tags.map(t => `<span class="chip ${activeTag===t?"active":""}" onclick="activeTag='${esc(t)}';render()">#${esc(t)} (${state.notes.filter(n=>n.tags.includes(t)).length})</span>`).join("")}
+    </div>
+    <div class="notegrid">${sorted.map(n => `
+      <div class="note">
+        <h4>${esc(n.title || "Untitled")}</h4>
+        <p>${esc(n.body)}</p>
+        <div>${n.tags.map(t => `<span class="tag" onclick="activeTag='${esc(t)}';render()">#${esc(t)}</span>`).join(" ")}</div>
+        <div class="noteactions">
+          <span class="muted" style="flex:1">${nice(n.updated)}</span>
+          <button onclick="editNote('${n.id}')">Edit</button>
+          <button onclick="deleteNote('${n.id}')">Delete</button>
+        </div>
+      </div>`).join("")}</div>`;
+
+  if (editingNoteId){
+    const n = state.notes.find(x => x.id === editingNoteId);
+    if (n){ nTitle.value = n.title; nBody.value = n.body; nTags.value = n.tags.join(", "); }
+  }
+}
+function extractTags(body, tagField){
+  const fromField = tagField.split(",").map(t => t.trim().toLowerCase().replace(/^#/,"")).filter(Boolean);
+  const fromBody = [...body.matchAll(/#([a-z0-9_-]+)/gi)].map(m => m[1].toLowerCase());
+  return [...new Set([...fromField, ...fromBody])];
+}
+function saveNote(){
+  const title = nTitle.value.trim(), body = nBody.value.trim();
+  if (!title && !body) return;
+  const tags = extractTags(body, nTags.value);
+  if (editingNoteId){
+    const n = state.notes.find(x => x.id === editingNoteId);
+    Object.assign(n, {title, body, tags, updated: todayStr()});
+    editingNoteId = null;
+  } else {
+    state.notes.push({id:uid(), title, body, tags, updated: todayStr()});
+  }
+  save(); render();
+}
+function editNote(id){ editingNoteId = id; render(); window.scrollTo({top:0, behavior:"smooth"}); }
+function cancelNoteEdit(){ editingNoteId = null; render(); }
+function deleteNote(id){
+  if (!confirm("Delete this note?")) return;
+  state.notes = state.notes.filter(n => n.id !== id);
+  if (editingNoteId === id) editingNoteId = null;
+  save(); render();
+}
+
+// ---------- item modal ----------
+function openModal(id){
+  editingItemId = id;
+  document.getElementById("mCat").innerHTML =
+    Object.entries(CATS).map(([k,c]) => `<option value="${k}">${c.icon} ${c.name}</option>`).join("");
+  const item = id ? state.items.find(i => i.id === id) : null;
+  document.getElementById("modalTitle").textContent = item ? "Edit item" : "New item";
+  document.getElementById("mTitle").value = item ? item.title : "";
+  document.getElementById("mCat").value = item ? item.cat : "work";
+  document.getElementById("mDate").value = item ? item.date : dayCursor;
+  document.getElementById("mTime").value = item ? item.time : "";
+  document.getElementById("mRecur").value = item ? (item.recur||"none") : "none";
+  document.getElementById("mDelete").style.display = item ? "" : "none";
+  document.getElementById("mDelete").onclick = () => {
+    if (!confirm("Delete this item (and all its repeats)?")) return;
+    state.items = state.items.filter(i => i.id !== id);
+    save(); closeModal(); render();
+  };
+  document.getElementById("itemModal").classList.add("open");
+  document.getElementById("mTitle").focus();
+}
+function closeModal(){ document.getElementById("itemModal").classList.remove("open"); }
+document.getElementById("itemModal").addEventListener("click", e => { if (e.target.id === "itemModal") closeModal(); });
+
+function saveModal(){
+  const title = document.getElementById("mTitle").value.trim(); if(!title) return;
+  const data = {
+    title,
+    cat:   document.getElementById("mCat").value,
+    date:  document.getElementById("mDate").value || todayStr(),
+    time:  document.getElementById("mTime").value,
+    recur: document.getElementById("mRecur").value,
+  };
+  if (editingItemId){
+    Object.assign(state.items.find(i => i.id === editingItemId), data);
+  } else {
+    state.items.push({id:uid(), completions:{}, ...data});
+  }
+  save(); closeModal(); render();
+}
+
+// ---------- export / import ----------
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "homebase-backup-" + todayStr() + ".json";
+  a.click();
+}
+function importData(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if (!data.items || !data.lists || !data.notes) throw new Error("wrong shape");
+      state = data; save(); render();
+      alert("Data imported ✔");
+    }catch(e){ alert("That file doesn't look like a HomeBase backup."); }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+}
+
+/* ============================================================
+   SYNC — keeps data identical across devices via a private
+   GitHub repo (data.json). Policy: newest copy wins.
+   Token/config lives ONLY in this browser (separate from data,
+   so Export files never contain your token).
+   ============================================================ */
+const SYNCKEY = "homebase-sync";
+let syncCfg = null;
+try{ syncCfg = JSON.parse(localStorage.getItem(SYNCKEY) || "null"); }catch(e){}
+let remoteSha = null;   // GitHub's version marker for data.json
+let pushTimer = null;
+let lastPull = 0;
+
+// base64 helpers that survive emoji/accents (plain btoa doesn't)
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str); let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(b64.replace(/\s/g, ""));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+function syncStatus(kind, label){
+  const colors = {off:"#9aa1ad", busy:"#f59e0b", ok:"#22c55e", err:"#ef4444"};
+  document.getElementById("syncDot").style.color = colors[kind];
+  document.getElementById("syncLabel").textContent = label;
+}
+function ghFetch(path, opts = {}){
+  return fetch("https://api.github.com" + path, {...opts, headers:{
+    "Authorization": "Bearer " + syncCfg.token,
+    "Accept": "application/vnd.github+json",
+    ...(opts.headers || {})}});
+}
+const dataPath = () => "/repos/" + syncCfg.user + "/" + syncCfg.repo + "/contents/data.json";
+
+async function syncPull(loud){
+  if (!syncCfg) return;
+  syncStatus("busy", "Syncing…");
+  try{
+    const r = await ghFetch(dataPath());
+    if (r.status === 404){ remoteSha = null; await syncPush(); return; }  // first ever sync
+    if (!r.ok) throw new Error("GitHub said " + r.status);
+    const j = await r.json();
+    remoteSha = j.sha;
+    const remote = JSON.parse(b64decode(j.content));
+    if ((remote.updatedAt || "") > (state.updatedAt || "")){
+      state = remote;
+      localStorage.setItem(KEY, JSON.stringify(state));
+      render();
+    } else if ((state.updatedAt || "") > (remote.updatedAt || "")){
+      await syncPush(); return;
+    }
+    lastPull = Date.now();
+    syncStatus("ok", "Synced");
+  }catch(e){
+    console.warn("sync pull failed", e);
+    syncStatus("err", "Sync problem");
+    if (loud) alert("Couldn't sync: " + e.message + "\nCheck your internet connection and sync settings.");
+  }
+}
+
+async function syncPush(){
+  if (!syncCfg) return;
+  syncStatus("busy", "Syncing…");
+  try{
+    const body = {message: "HomeBase sync", content: b64encode(JSON.stringify(state))};
+    if (remoteSha) body.sha = remoteSha;
+    let r = await ghFetch(dataPath(), {method:"PUT", body: JSON.stringify(body)});
+    if (r.status === 409 || r.status === 422){
+      // our version marker is stale — grab the fresh one and write again
+      const g = await ghFetch(dataPath());
+      if (g.ok){ body.sha = (await g.json()).sha;
+        r = await ghFetch(dataPath(), {method:"PUT", body: JSON.stringify(body)}); }
+    }
+    if (!r.ok) throw new Error("GitHub said " + r.status);
+    remoteSha = (await r.json()).content.sha;
+    lastPull = Date.now();
+    syncStatus("ok", "Synced");
+  }catch(e){
+    console.warn("sync push failed", e);
+    syncStatus("err", "Sync problem");
+  }
+}
+
+// ----- settings modal -----
+function openSettings(){
+  document.getElementById("sUser").value  = syncCfg ? syncCfg.user : "";
+  document.getElementById("sRepo").value  = syncCfg ? syncCfg.repo : "homebase-data";
+  document.getElementById("sToken").value = syncCfg ? syncCfg.token : "";
+  document.getElementById("sDisconnect").style.display = syncCfg ? "" : "none";
+  document.getElementById("sStatus").textContent = "";
+  document.getElementById("settingsModal").classList.add("open");
+}
+function closeSettings(){ document.getElementById("settingsModal").classList.remove("open"); }
+document.getElementById("settingsModal").addEventListener("click", e => { if (e.target.id === "settingsModal") closeSettings(); });
+
+async function connectSync(){
+  const user  = document.getElementById("sUser").value.trim();
+  const repo  = document.getElementById("sRepo").value.trim() || "homebase-data";
+  const token = document.getElementById("sToken").value.trim();
+  const status = document.getElementById("sStatus");
+  if (!user || !token){ status.textContent = "Please fill in your username and token."; return; }
+  syncCfg = {user, repo, token};
+  status.textContent = "Testing connection…";
+  const r = await ghFetch("/repos/" + user + "/" + repo).catch(() => null);
+  if (!r || !r.ok){
+    syncCfg = null;
+    status.textContent = "Couldn't connect" + (r ? " (error " + r.status + ")" : "") + ". Double-check the username, repo name, and token.";
+    syncStatus("off", "Set up sync");
+    return;
+  }
+  localStorage.setItem(SYNCKEY, JSON.stringify(syncCfg));
+  closeSettings();
+  await syncPull(true);
+}
+function disconnectSync(){
+  syncCfg = null; remoteSha = null;
+  localStorage.removeItem(SYNCKEY);
+  syncStatus("off", "Set up sync");
+  closeSettings();
+}
+
+// ----- start up -----
+render();
+if (syncCfg) syncPull(); else syncStatus("off", "Set up sync");
+// re-check for changes when you come back to the tab/app (max once per 30s)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && syncCfg && Date.now() - lastPull > 30000) syncPull();
+});
+</script>
+</body>
+</html>
