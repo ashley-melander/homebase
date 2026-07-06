@@ -10,7 +10,7 @@ All credentials come from environment variables (GitHub Actions secrets):
   TIMEZONE                                         - e.g. America/Chicago
 This file contains no secrets and is safe to be public.
 """
-import os, json, datetime
+import os, re, json, datetime
 from zoneinfo import ZoneInfo
 
 import requests
@@ -116,17 +116,18 @@ def main():
         ("OUTLOOK_ICS_URL", "outlook"),
         ("APPLE_ICS_URL", "apple"),
     ]:
-        url = os.environ.get(env_name, "").strip()
-        if not url:
-            continue
-        if url.startswith("webcal://"):
-            url = "https://" + url[len("webcal://"):]
-        try:
-            events = fetch_ics(url, source)
-            data["events"].extend(events)
-            print(f"[{source}] {len(events)} event entries")
-        except Exception as e:  # one broken feed shouldn't kill the rest
-            print(f"[{source}] FAILED: {e}")
+        # each secret can hold SEVERAL feed links, separated by commas,
+        # spaces, or newlines — handy for multiple calendars per service
+        urls = [u for u in re.split(r"[\s,]+", os.environ.get(env_name, "").strip()) if u]
+        for n, url in enumerate(urls):
+            if url.startswith("webcal://"):
+                url = "https://" + url[len("webcal://"):]
+            try:
+                events = fetch_ics(url, source)
+                data["events"].extend(events)
+                print(f"[{source} #{n+1}] {len(events)} event entries")
+            except Exception as e:  # one broken feed shouldn't kill the rest
+                print(f"[{source} #{n+1}] FAILED: {e}")
 
     token = os.environ.get("CLICKUP_TOKEN", "").strip()
     if token:
