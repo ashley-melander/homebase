@@ -56,6 +56,10 @@
   .item .edit{border:none; background:transparent; color:var(--muted); font-size:15px; padding:4px;}
   .item .edit:hover{color:var(--ink);}
   .badge{font-size:11px; background:#eef1f6; border-radius:20px; padding:2px 8px; color:var(--muted); white-space:nowrap;}
+  .item.event{background:#f4f7fd; border-style:solid;}
+  .item.event .dotmark{width:19px; text-align:center; flex:none;}
+  .item a.extlink{color:var(--muted); text-decoration:none; font-size:13px; padding:4px;}
+  .item a.extlink:hover{color:var(--ink);}
 
   .quickadd{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
   .quickadd input[type=text]{flex:1; min-width:160px;}
@@ -218,6 +222,15 @@
    the key "homebase-v1". Use Export/Import to back up or move.
    ============================================================ */
 
+// ---------- external feed sources (calendar.json, written by the
+// hourly GitHub Action in your data vault) ----------
+const SOURCES = {
+  google:  {name:"Google Cal",  icon:"📅", hex:"#4285f4"},
+  outlook: {name:"Outlook Cal", icon:"📅", hex:"#0ea5e9"},
+  apple:   {name:"Apple Cal",   icon:"📅", hex:"#8e8e93"},
+  clickup: {name:"ClickUp",     icon:"✅", hex:"#7c3aed"},
+};
+
 // ---------- categories ----------
 const CATS = {
   work:     {name:"Work",              icon:"💼", color:"var(--work)",     hex:"#3b82f6"},
@@ -269,9 +282,30 @@ let editingNoteId = null;
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw){
+      const s = JSON.parse(raw);
+      if (!s.extDone) s.extDone = {};   // local check-offs for ClickUp tasks
+      return s;
+    }
   }catch(e){ console.warn("Could not load saved data", e); }
   return seed();
+}
+
+// external feed data (events + ClickUp tasks), cached for offline use
+const FEEDKEY = "homebase-feeds";
+let feeds = {events:[], tasks:[]};
+try{ feeds = JSON.parse(localStorage.getItem(FEEDKEY)) || feeds; }catch(e){}
+function feedOn(ds){
+  return {
+    events: (feeds.events||[]).filter(e => e.date === ds),
+    tasks:  (feeds.tasks||[]).filter(t => t.date === ds),
+  };
+}
+const extIsDone = t => !!(state.extDone && state.extDone[t.id]);
+function toggleExt(id){
+  state.extDone = state.extDone || {};
+  state.extDone[id] = !state.extDone[id];
+  save(); render();
 }
 function save(){
   state.updatedAt = new Date().toISOString();   // powers "newest copy wins" across devices
@@ -300,6 +334,7 @@ function seed(){
         {id:uid(), text:"Organize garage shelves", done:false},
       ]},
     ],
+    extDone: {},
     notes: [
       {id:uid(), title:"Welcome to HomeBase 👋",
        body:"Quick tour:\n\n• TODAY shows everything due on one day. Check things off — they stay put, just grayed out.\n• WEEK and MONTH zoom out. Click any day in Month to jump to it.\n• LISTS is for groceries, shopping, someday-tasks.\n• NOTES is this tab. Add tags to a note and click a tag to see everything with that tag together.\n\nThe pencil ✎ on any item lets you edit or delete it. These sample entries are safe to delete!",
@@ -350,24 +385,63 @@ function itemRow(item, ds){
   </div>`;
 }
 
+// row for an external calendar event (read-only)
+function eventRow(ev){
+  const s = SOURCES[ev.source] || SOURCES.google;
+  const time = ev.time ? ev.time + (ev.endTime ? "–"+ev.endTime : "") : "all day";
+  return `<div class="item event" style="border-left-color:${s.hex}">
+    <span class="dotmark">${s.icon}</span>
+    <div class="title"><div class="t">${esc(ev.title)}</div><div class="meta">${esc(time)} · ${s.name}</div></div>
+  </div>`;
+}
+// row for a ClickUp task (checkable locally, link out to ClickUp)
+function extTaskRow(t){
+  const s = SOURCES.clickup;
+  const done = extIsDone(t);
+  const meta = [t.time, s.name + (t.list ? " · " + t.list : "")].filter(Boolean).join(" · ");
+  return `<div class="item ${done?"done":""}" style="border-left-color:${s.hex}">
+    <input type="checkbox" class="cb" ${done?"checked":""} onchange="toggleExt('${esc(t.id)}')">
+    <div class="title"><div class="t">${esc(t.title)}</div><div class="meta">${esc(meta)}</div></div>
+    ${t.url ? `<a class="extlink" href="${esc(t.url)}" target="_blank" title="Open in ClickUp">↗</a>` : ""}
+  </div>`;
+}
+function overdueExtTasks(){
+  const t = todayStr();
+  return (feeds.tasks||[]).filter(x => x.date && x.date < t && !extIsDone(x))
+    .sort((a,b) => a.date < b.date ? -1 : 1);
+}
+
 function renderDay(){
   const ds = dayCursor;
   const items = itemsOn(ds);
-  const doneCount = items.filter(i => isDone(i, ds)).length;
+  const {events, tasks} = feedOn(ds);
+  const doneCount = items.filter(i => isDone(i, ds)).length + tasks.filter(extIsDone).length;
+  const totalCount = items.length + tasks.length;
   const od = overdueItems();
+  const odExt = overdueExtTasks();
   const isToday = ds === todayStr();
 
   let html = "";
-  if (isToday && od.length){
-    html += `<div class="alert"><h3>⚠️ ${od.length} overdue item${od.length>1?"s":""}</h3>` +
-      od.map(i => itemRow(i, i.date).replace('class="item ','class="item ') ).join("") +
-      `<div class="muted" style="margin-top:6px">Check one off to clear it, or hit ✎ to move it to a new date.</div></div>`;
+  if (isToday && (od.length + odExt.length)){
+    const n = od.length + odExt.length;
+    html += `<div class="alert"><h3>⚠️ ${n} overdue item${n>1?"s":""}</h3>` +
+      od.map(i => itemRow(i, i.date)).join("") +
+      odExt.map(t => extTaskRow(t)).join("") +
+      `<div class="muted" style="margin-top:6px">Check one off to clear it, or hit ✎ to move it to a new date. ClickUp items also clear when completed in ClickUp.</div></div>`;
   }
+
+  // merge your items, calendar events, and ClickUp tasks into one
+  // time-sorted list for the day
+  const rows = [
+    ...events.map(e => ({time:e.time, html:eventRow(e)})),
+    ...tasks.map(t => ({time:t.time, html:extTaskRow(t)})),
+    ...items.map(i => ({time:i.time, html:itemRow(i, ds)})),
+  ].sort((a,b) => (a.time||"99:99") < (b.time||"99:99") ? -1 : 1);
 
   html += `<div class="card">
     <div class="row">
       <div style="flex:1"><h2>${isToday ? "Today" : nice(ds)}</h2>
-        <div class="progress">${items.length ? doneCount+" of "+items.length+" done" : "Nothing scheduled — add something below or enjoy the quiet."}</div>
+        <div class="progress">${totalCount ? doneCount+" of "+totalCount+" done"+(events.length ? " · "+events.length+" event"+(events.length>1?"s":"") : "") : "Nothing scheduled — add something below or enjoy the quiet."}</div>
       </div>
       <div class="row navbtns">
         <button onclick="moveDay(-1)">‹</button>
@@ -375,7 +449,7 @@ function renderDay(){
         <button onclick="moveDay(1)">›</button>
       </div>
     </div>
-    <div style="margin-top:12px">${items.map(i => itemRow(i, ds)).join("")}</div>
+    <div style="margin-top:12px">${rows.map(r => r.html).join("")}</div>
     <div class="quickadd">
       <input type="text" id="qaTitle" placeholder="Add something for ${isToday?"today":nice(ds)}…" onkeydown="if(event.key==='Enter')quickAdd()">
       <select id="qaCat">${Object.entries(CATS).map(([k,c])=>`<option value="${k}">${c.icon} ${c.name}</option>`).join("")}</select>
@@ -416,8 +490,15 @@ function renderWeek(){
     <div class="weekgrid">` +
     days.map(ds => {
       const items = itemsOn(ds);
+      const {events, tasks} = feedOn(ds);
       return `<div class="daycol ${ds===todayStr()?"today":""}">
         <h4>${nice(ds)}</h4>` +
+        events.map(e => {
+          const s = SOURCES[e.source]||SOURCES.google;
+          return `<div class="mini" style="border-left-color:${s.hex}" title="${esc(e.title)}${e.time?" · "+e.time:""} (${s.name})">${s.icon} ${e.time ? e.time+" " : ""}${esc(e.title)}</div>`;
+        }).join("") +
+        tasks.map(t => `<div class="mini ${extIsDone(t)?"done":""}" style="border-left-color:${SOURCES.clickup.hex}"
+            title="${esc(t.title)} (ClickUp) — click to check off" onclick="toggleExt('${esc(t.id)}')">${SOURCES.clickup.icon} ${esc(t.title)}</div>`).join("") +
         items.map(i => {
           const c = CATS[i.cat]||CATS.work;
           return `<div class="mini ${isDone(i,ds)?"done":""}" style="border-left-color:${c.hex}"
@@ -441,13 +522,19 @@ function renderMonth(){
   for (let day=1; day<=daysInMonth; day++){
     const ds = fmt(new Date(y, m, day));
     const items = itemsOn(ds);
-    const shown = items.slice(0,3);
+    const {events, tasks} = feedOn(ds);
+    // unified list of {title, hex} entries for this day's cell
+    const all = [
+      ...events.map(e => ({title:e.title, hex:(SOURCES[e.source]||SOURCES.google).hex})),
+      ...tasks.map(t => ({title:t.title, hex:SOURCES.clickup.hex})),
+      ...items.map(i => ({title:i.title, hex:(CATS[i.cat]||CATS.work).hex})),
+    ];
+    const shown = all.slice(0,3);
     cells += `<div class="mcell ${ds===todayStr()?"today":""}" onclick="jumpToDay('${ds}')">
       <span class="dnum">${day}</span>
-      ${shown.map(i => { const c=CATS[i.cat]||CATS.work;
-        return `<span class="dot" style="border-left-color:${c.hex}">${esc(i.title)}</span>`; }).join("")}
-      <span class="mdots">${shown.map(i => `<i style="background:${(CATS[i.cat]||CATS.work).hex}"></i>`).join("")}</span>
-      ${items.length>3 ? `<span class="more">+${items.length-3} more</span>` : ""}
+      ${shown.map(x => `<span class="dot" style="border-left-color:${x.hex}">${esc(x.title)}</span>`).join("")}
+      <span class="mdots">${shown.map(x => `<i style="background:${x.hex}"></i>`).join("")}</span>
+      ${all.length>3 ? `<span class="more">+${all.length-3} more</span>` : ""}
     </div>`;
   }
   const html = `<div class="card"><div class="row">
@@ -753,6 +840,20 @@ async function syncPush(){
   }
 }
 
+// pull calendar.json (events + ClickUp tasks) from the data vault;
+// created by the hourly GitHub Action, so 404 just means "not set up yet"
+async function fetchFeeds(){
+  if (!syncCfg) return;
+  try{
+    const r = await ghFetch("/repos/" + syncCfg.user + "/" + syncCfg.repo + "/contents/calendar.json");
+    if (!r.ok) return;
+    const j = await r.json();
+    feeds = JSON.parse(b64decode(j.content));
+    localStorage.setItem(FEEDKEY, JSON.stringify(feeds));
+    render();
+  }catch(e){ console.warn("feed fetch failed", e); }
+}
+
 // ----- settings modal -----
 function openSettings(){
   document.getElementById("sUser").value  = syncCfg ? syncCfg.user : "";
@@ -793,10 +894,10 @@ function disconnectSync(){
 
 // ----- start up -----
 render();
-if (syncCfg) syncPull(); else syncStatus("off", "Set up sync");
+if (syncCfg){ syncPull(); fetchFeeds(); } else syncStatus("off", "Set up sync");
 // re-check for changes when you come back to the tab/app (max once per 30s)
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && syncCfg && Date.now() - lastPull > 30000) syncPull();
+  if (!document.hidden && syncCfg && Date.now() - lastPull > 30000){ syncPull(); fetchFeeds(); }
 });
 </script>
 </body>
